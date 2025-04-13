@@ -84,15 +84,21 @@ def perguntar():
     if encontrada:
         return jsonify({"resposta": resposta_predefinida})
 
-    # Pesquisa Google
+    # Pesquisa Google com tratamento de erro
     links = []
-    for url in search(pergunta, num_results=8):
-        if "google.com" in url or "pinterest.com" in url:
-            continue
-        if url not in links:
-            links.append(url)
-        if len(links) >= 3:
-            break
+    try:
+        for url in search(pergunta, num_results=8):
+            if "google.com" in url or "pinterest.com" in url:
+                continue
+            if url not in links:
+                links.append(url)
+            if len(links) >= 3:
+                break
+    except Exception as e:
+        print("Erro durante a busca no Google:", e)
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({"resposta": "Erro ao buscar resposta. Tente novamente mais tarde."})
 
     # Tenta extrair e resumir a resposta
     respostas_extraidas = []
