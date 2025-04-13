@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 import requests
 from bs4 import BeautifulSoup
-from googlesearch import search
 import re
 
 app = Flask(__name__)
@@ -18,7 +17,6 @@ def regras():
 def index():
     return send_from_directory('.', 'index.html')
 
-# Respostas pré-definidas pra perguntas básicas
 def resposta_automatica(pergunta):
     pergunta = pergunta.lower()
 
@@ -74,33 +72,34 @@ def resumir_texto(texto):
     frases = re.split(r'(?<=[.!?]) +', texto)
     return " ".join(frases[:2])
 
+def buscar_bing_scraping(pergunta):
+    headers = {"User-Agent": "Mozilla/5.0"}
+    query = pergunta.replace(" ", "+")
+    url = f"https://www.bing.com/search?q={query}"
+    resposta = requests.get(url, headers=headers)
+    soup = BeautifulSoup(resposta.text, "html.parser")
+    resultados = soup.select("li.b_algo h2 a")
+
+    links = []
+    for tag in resultados:
+        href = tag.get("href")
+        if href and "bing.com" not in href and "microsoft.com" not in href:
+            links.append(href)
+        if len(links) >= 3:
+            break
+    return links
+
 @app.route("/perguntar", methods=["POST"])
 def perguntar():
     data = request.get_json()
     pergunta = data.get("pergunta", "")
 
-    # Verifica se é pergunta simples
     resposta_predefinida, encontrada = resposta_automatica(pergunta)
     if encontrada:
         return jsonify({"resposta": resposta_predefinida})
 
-    # Pesquisa Google com tratamento de erro
-    links = []
-    try:
-        for url in search(pergunta, num_results=8):
-            if "google.com" in url or "pinterest.com" in url:
-                continue
-            if url not in links:
-                links.append(url)
-            if len(links) >= 3:
-                break
-    except Exception as e:
-        print("Erro durante a busca no Google:", e)
-        import traceback
-        print(traceback.format_exc())
-        return jsonify({"resposta": "Erro ao buscar resposta. Tente novamente mais tarde."})
+    links = buscar_bing_scraping(pergunta)
 
-    # Tenta extrair e resumir a resposta
     respostas_extraidas = []
     for link in links:
         try:
@@ -125,7 +124,6 @@ def perguntar():
             "Quer tentar perguntar de outro jeito?"
         )
 
-    # Formata os links como fonte
     if links:
         resposta_final += "\n\n<b>Fontes:</b><br>" + "<br>".join(
             f'<a href="{x}" target="_blank">{x}</a>' for x in links
