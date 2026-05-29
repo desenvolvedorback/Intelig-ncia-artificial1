@@ -1,1 +1,2 @@
-# Intelig-ncia-artificial1
+# Intelig-ncia-artificial1 -
+Aurora
